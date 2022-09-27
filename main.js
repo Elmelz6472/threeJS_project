@@ -2,99 +2,119 @@ import './style.css'
 import * as THREE from "three";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-// Setup
+let camera, scene, renderer;
 
-const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-
-const renderer = new THREE.WebGLRenderer({
-  canvas: document.querySelector('#bg'),
-});
-
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-camera.position.setZ(30);
-camera.position.setX(-3);
-// camera.position.setY(2);
+const mouse = new THREE.Vector2();
+const target = new THREE.Vector2();
+const windowHalf = new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2);
+let key_press_flag = false
+let lst_cubes = [];
 
 
-renderer.render(scene, camera);
+init();
+animate();
 
 
 
 
-const geometry = new THREE.TorusGeometry(10, 3, 16, 80);
-const material = new THREE.MeshStandardMaterial({color: 0xff6347, wireframe: true});
-const torus = new THREE.Mesh(geometry, material);
-
-torus.position.set(1, 1, 1)
-scene.add(torus)
-
-const pointLight = new THREE.PointLight(0xffffff);
-pointLight.position.set(20, 20, 20);
-
-const ambientLight = new THREE.AmbientLight(0xffffff);
-
-scene.add(pointLight, ambientLight)
-
-// helper
-// const lightHelper = new THREE.PointLightHelper(pointLight);
-// const gridHelper = new THREE.GridHelper(200, 50);
-// scene.add(lightHelper, gridHelper)
-
-// camera.position.z = -10
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.minDistance = 25;
-// controls.maxDistance = 50;
+function init() {
 
 
-let lst_stars = [];
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.position.z = 50;
 
-function addStar() {
-  const geometry = new THREE.SphereGeometry(0.25, 24, 24);
-  const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-  const star = new THREE.Mesh(geometry, material);
+  scene = new THREE.Scene();
 
-  const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(200));
-  star.position.set(x, y, z);
-  scene.add(star);
-  lst_stars.push(star)
+  const geometry = new THREE.BoxBufferGeometry();
+  const material = new THREE.MeshNormalMaterial();
+
+  for (let i = 0; i < 1000; i++) {
+
+    const object = new THREE.Mesh(geometry, material);
+    object.position.x = Math.random() * 80 - 40;
+    object.position.y = Math.random() * 80 - 40;
+    object.position.z = Math.random() * 80 - 40;
+    object.rotation.x = Math.random() * 2 * Math.PI;
+    object.rotation.y = Math.random() * 2 * Math.PI;
+    object.rotation.z = Math.random() * 2 * Math.PI;
+    lst_cubes.push(object)
+    scene.add(object);
+
+  }
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.querySelector('#bg'), });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  document.addEventListener('mousemove', onMouseMove, false);
+  document.addEventListener('keydown', onKeyDown, false)
+  document.addEventListener('wheel', onMouseWheel, false);
+  window.addEventListener('resize', onResize, false);
+
 }
 
-Array(1000).fill().forEach(addStar)
-
-
-const spaceTexture = new THREE.TextureLoader().load("space.jpg");
-scene.background = spaceTexture;
-
-function moveCamera() {
-  const t = document.body.getBoundingClientRect().top;
-
-  camera.position.z = t * -0.01 * 7;
-  camera.position.x = t * -0.0002 * 5;
-  camera.rotation.y = t * -0.0002 * 5;
+function onKeyDown(event) {
+  if (event.key == " " && key_press_flag == false) {
+    console.log("lmaoo")
+    key_press_flag = true
+  }
+  else {
+    key_press_flag = false
+  }
 }
 
-document.body.onscroll = moveCamera;
-moveCamera();
+function onMouseMove(event) {
 
-function animate_stars(star) {
-  star.translateZ(0.1);
+  mouse.x = (event.clientX - windowHalf.x);
+  mouse.y = (event.clientY - windowHalf.x);
+
+}
+
+function onMouseWheel(event) {
+
+  camera.position.z += event.deltaY * 0.1; // move camera along z-axis
+
+}
+
+function onResize(event) {
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  windowHalf.set(width / 2, height / 2);
+
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+
+}
+
+function animate_cubes(cube) {
+  cube.rotation.z += 0.01
 }
 
 function animate() {
-  requestAnimationFrame(animate);
-  torus.rotation.x += 0.01;
-  torus.rotation.y += 0.005;
-  // torus.rotation.z += 0.01
-  lst_stars.forEach(animate_stars)
-  controls.update();
-  renderer.render(scene, camera);
+
+  lst_cubes.forEach(animate_cubes)
+
+  if (key_press_flag == true) {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+
+  else {
+
+    target.x = (1 - mouse.x) * 0.002;
+    target.y = (1 - mouse.y) * 0.002;
+
+    camera.rotation.x += 0.01 * (target.y - camera.rotation.x);
+    camera.rotation.y += 0.01 * (target.x - camera.rotation.y);
+
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+
+  }
+
 
 }
-
-console.log(lst_stars)
-animate()
 
